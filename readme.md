@@ -1,4 +1,4 @@
-# README.md
+
 
 # MLOps Sandbox for HSE Students
 
@@ -31,7 +31,9 @@
 ```bash
 # Клонировать репозиторий (если требуется)
 git clone https://github.com/hse-mlops/sandbox.git
-cd sandboxПервоначальная настройка MinIO
+cd hse-mlops
+```
+Первоначальная настройка MinIO
 
     Откройте MinIO Console: http://localhost:9001
 
