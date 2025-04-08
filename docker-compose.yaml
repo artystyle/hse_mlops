@@ -1,0 +1,94 @@
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mlops-net
+
+  airflow-init:
+    image: apache/airflow:2.5.1
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__FERNET_KEY: '46BKJoQYlPPOexq0OhGZnIFX5ogSJ9g6wfJIIZ35J8Y='
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    command: >
+      bash -c '
+      airflow db init &&
+      airflow users create --username airflow --password airflow --firstname Air --lastname Flow --role Admin --email admin@example.org
+      '
+    networks:
+      - mlops-net
+
+  airflow-webserver:
+    image: apache/airflow:2.5.1
+    depends_on:
+      - postgres
+      - airflow-init
+    environment:
+      AIRFLOW__CORE__FERNET_KEY: '46BKJoQYlPPOexq0OhGZnIFX5ogSJ9g6wfJIIZ35J8Y='
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: 'hse-mlops-course'
+    command: airflow webserver
+    ports:
+      - "8080:8080"
+    networks:
+      - mlops-net
+
+  jupyterlab:
+    image: jupyter/tensorflow-notebook:latest
+    ports:
+      - "8888:8888"
+    command: start-notebook.sh --NotebookApp.token='hse'
+    volumes:
+      - ./notebooks:/home/jovyan/work
+    networks:
+      - mlops-net
+
+  minio:
+    image: minio/minio:RELEASE.2023-08-16T20-17-30Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: mlflow_access
+      MINIO_ROOT_PASSWORD: mlflow_secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - mlops-net
+
+  mlflow:
+    image: mlflow/mlflow:latest
+    depends_on:
+      - minio
+    environment:
+      AWS_ACCESS_KEY_ID: mlflow_access
+      AWS_SECRET_ACCESS_KEY: mlflow_secret
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    command: >
+      bash -c "
+      pip install boto3 && 
+      mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root s3://mlflow/ --host 0.0.0.0
+      "
+    ports:
+      - "5000:5000"
+    networks:
+      - mlops-net
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  mlops-net:
+    driver: bridge
