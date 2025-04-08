@@ -67,7 +67,7 @@ services:
       - mlops-net
 
   mlflow:
-    image: image: ghcr.io/mlflow/mlflow
+    image: ghcr.io/mlflow/mlflow
     depends_on:
       - minio
     environment:
